@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fleet Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+    header { background: #1a1d27; border-bottom: 1px solid #2d3148; padding: 16px 32px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 18px; font-weight: 600; color: #fff; }
+    header span { background: #6c63ff22; color: #6c63ff; font-size: 12px; padding: 2px 8px; border-radius: 12px; border: 1px solid #6c63ff44; }
+    main { padding: 32px; max-width: 1100px; margin: 0 auto; }
+    .section-title { font-size: 13px; font-weight: 600; color: #8892a4; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; }
+    .host-card { background: #1a1d27; border: 1px solid #2d3148; border-radius: 12px; padding: 20px 24px; margin-bottom: 12px; display: flex; align-items: center; gap: 16px; }
+    .host-icon { width: 40px; height: 40px; background: #6c63ff22; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .host-info { flex: 1; }
+    .host-name { font-weight: 600; font-size: 15px; color: #fff; }
+    .host-meta { font-size: 12px; color: #8892a4; margin-top: 4px; display: flex; gap: 16px; }
+    .badge { display: inline-flex; align-items: center; gap: 4px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
+    .dot.offline { background: #6b7280; }
+    .actions { display: flex; gap: 8px; flex-shrink: 0; }
+    button { cursor: pointer; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; padding: 8px 16px; transition: all 0.15s; }
+    .btn-lock { background: #ef444422; color: #ef4444; border: 1px solid #ef444444; }
+    .btn-lock:hover { background: #ef4444; color: #fff; }
+    .btn-details { background: #6c63ff22; color: #6c63ff; border: 1px solid #6c63ff44; }
+    .btn-details:hover { background: #6c63ff; color: #fff; }
+    .btn-script { background: #f59e0b22; color: #f59e0b; border: 1px solid #f59e0b44; }
+    .btn-script:hover { background: #f59e0b; color: #fff; }
+    .loading { text-align: center; padding: 60px; color: #8892a4; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: #000000aa; z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #1a1d27; border: 1px solid #2d3148; border-radius: 16px; padding: 28px; width: 500px; max-width: 90vw; }
+    .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+    .modal-meta { font-size: 13px; color: #8892a4; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .modal-meta span { background: #0f1117; padding: 8px 12px; border-radius: 8px; }
+    .modal-meta strong { color: #e2e8f0; display: block; font-size: 12px; }
+    textarea { width: 100%; background: #0f1117; border: 1px solid #2d3148; border-radius: 8px; color: #e2e8f0; padding: 12px; font-family: monospace; font-size: 13px; resize: vertical; min-height: 100px; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+    .btn-cancel { background: #2d3148; color: #8892a4; }
+    .btn-cancel:hover { background: #3d4468; color: #fff; }
+    .btn-run { background: #6c63ff; color: #fff; }
+    .btn-run:hover { background: #5a52e0; }
+    .output { background: #0f1117; border: 1px solid #2d3148; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; color: #22c55e; margin-top: 12px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; display: none; }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; padding: 12px 20px; font-size: 14px; z-index: 200; display: none; }
+    .toast.success { border-color: #22c55e44; color: #22c55e; }
+    .toast.error { border-color: #ef444444; color: #ef4444; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Fleet Dashboard</h1>
+  <span id="host-count">Loading...</span>
+</header>
+
+<main>
+  <div class="section-title">Enrolled Devices</div>
+  <div id="hosts-list"><div class="loading">Loading devices...</div></div>
+</main>
+
+<!-- Script Modal -->
+<div class="modal-overlay" id="script-modal">
+  <div class="modal">
+    <h2>Run Script</h2>
+    <div class="modal-meta" id="script-host-meta"></div>
+    <textarea id="script-input" placeholder="#!/bin/bash&#10;echo 'Hello from Fleet'"></textarea>
+    <div class="output" id="script-output"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-run" onclick="runScript()">Run Script</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  let hosts = [];
+  let activeHost = null;
+
+  async function loadHosts() {
+    const r = await fetch("/api/hosts");
+    const data = await r.json();
+    hosts = data.hosts || [];
+    document.getElementById("host-count").textContent = `${hosts.length} device${hosts.length !== 1 ? "s" : ""}`;
+    renderHosts();
+  }
+
+  function renderHosts() {
+    const list = document.getElementById("hosts-list");
+    if (!hosts.length) { list.innerHTML = '<div class="loading">No devices enrolled.</div>'; return; }
+    list.innerHTML = hosts.map(h => `
+      <div class="host-card">
+        <div class="host-icon">${h.platform === "darwin" ? "💻" : h.platform === "windows" ? "🖥️" : "🐧"}</div>
+        <div class="host-info">
+          <div class="host-name">${h.hostname}</div>
+          <div class="host-meta">
+            <span class="badge"><span class="dot ${h.status === "online" ? "" : "offline"}"></span>${h.status}</span>
+            <span>${h.os_version || h.platform}</span>
+            <span>${h.primary_ip || ""}</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn-lock" onclick="lockDevice('${h.uuid}', '${h.hostname}')">🔒 Lock</button>
+          <button class="btn-script" onclick="openScriptModal(${h.id}, '${h.hostname}', '${h.platform}')">⚡ Script</button>
+          <button class="btn-details" onclick="viewDetails(${h.id})">Details →</button>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  async function lockDevice(uuid, hostname) {
+    if (!confirm(`Lock "${hostname}"? This will immediately lock the device.`)) return;
+    showToast(`Sending lock command to ${hostname}...`, "");
+    const r = await fetch(`/api/hosts/${uuid}/lock`, { method: "POST" });
+    const data = await r.json();
+    if (data.error) { showToast(`Error: ${data.error}`, "error"); }
+    else { showToast(`Lock command sent to ${hostname}`, "success"); }
+  }
+
+  function openScriptModal(id, hostname, platform) {
+    activeHost = { id, hostname, platform };
+    document.getElementById("script-host-meta").innerHTML = `
+      <span><strong>Hostname</strong>${hostname}</span>
+      <span><strong>Platform</strong>${platform}</span>
+    `;
+    document.getElementById("script-input").value = "";
+    document.getElementById("script-output").style.display = "none";
+    document.getElementById("script-modal").classList.add("open");
+  }
+
+  function closeModal() {
+    document.getElementById("script-modal").classList.remove("open");
+    activeHost = null;
+  }
+
+  async function runScript() {
+    if (!activeHost) return;
+    const script_contents = document.getElementById("script-input").value.trim();
+    if (!script_contents) return;
+    const out = document.getElementById("script-output");
+    out.style.display = "block";
+    out.textContent = "Running...";
+    const r = await fetch(`/api/hosts/${activeHost.id}/script`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ script_contents }),
+    });
+    const data = await r.json();
+    out.textContent = data.output || data.message || JSON.stringify(data, null, 2);
+  }
+
+  async function viewDetails(id) {
+    const r = await fetch(`/api/hosts/${id}`);
+    const data = await r.json();
+    const h = data.host;
+    alert(`${h.hostname}\n\nOS: ${h.os_version}\nIP: ${h.primary_ip}\nMemory: ${Math.round(h.memory / 1073741824)}GB\nCPU: ${h.cpu_brand}\nLast seen: ${new Date(h.seen_time).toLocaleString()}`);
+  }
+
+  function showToast(msg, type) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.className = `toast ${type}`;
+    t.style.display = "block";
+    setTimeout(() => t.style.display = "none", 3500);
+  }
+
+  loadHosts();
+</script>
+</body>
+</html>
