@@ -1,0 +1,29 @@
+name: Build Windows Fleet Installer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download fleetctl
+        run: |
+          curl -L https://github.com/fleetdm/fleet/releases/download/fleet-v4.82.1/fleetctl_v4.82.1_linux.tar.gz -o fleetctl.tar.gz
+          tar -xzf fleetctl.tar.gz
+          chmod +x fleetctl_v4.82.1_linux/fleetctl
+          sudo mv fleetctl_v4.82.1_linux/fleetctl /usr/local/bin/fleetctl
+
+      - name: Generate Windows MSI
+        run: |
+          fleetctl package \
+            --type=msi \
+            --fleet-url=https://fleet-dm.up.railway.app \
+            --enroll-secret=3kAE6k4ywr+Fw2NEoryoFwzk9EUC4T+m \
+            --fleet-desktop
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-windows-installer
+          path: fleet-osquery.msi
