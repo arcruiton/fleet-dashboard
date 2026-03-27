@@ -9,10 +9,10 @@ jobs:
     steps:
       - name: Download fleetctl
         run: |
-          curl -L https://github.com/fleetdm/fleet/releases/download/fleet-v4.82.1/fleetctl_v4.82.1_linux.tar.gz -o fleetctl.tar.gz
+          curl -L https://github.com/fleetdm/fleet/releases/download/fleet-v4.82.1/fleetctl_v4.82.1_linux_amd64.tar.gz -o fleetctl.tar.gz
           tar -xzf fleetctl.tar.gz
-          chmod +x fleetctl_v4.82.1_linux/fleetctl
-          sudo mv fleetctl_v4.82.1_linux/fleetctl /usr/local/bin/fleetctl
+          chmod +x fleetctl_v4.82.1_linux_amd64/fleetctl
+          sudo mv fleetctl_v4.82.1_linux_amd64/fleetctl /usr/local/bin/fleetctl
 
       - name: Generate Windows MSI
         run: |
