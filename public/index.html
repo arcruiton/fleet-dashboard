@@ -106,7 +106,7 @@
           </div>
         </div>
         <div class="actions">
-          <button class="btn-lock" onclick="lockDevice('${h.uuid}', '${h.hostname}')">🔒 Lock</button>
+          <button class="btn-lock" onclick="lockDevice(${h.id}, '${h.hostname}')">🔒 Lock</button>
           <button class="btn-script" onclick="openScriptModal(${h.id}, '${h.hostname}', '${h.platform}')">⚡ Script</button>
           <button class="btn-details" onclick="viewDetails(${h.id})">Details →</button>
         </div>
@@ -114,13 +114,13 @@
     `).join("");
   }
 
-  async function lockDevice(uuid, hostname) {
+  async function lockDevice(id, hostname) {
     if (!confirm(`Lock "${hostname}"? This will immediately lock the device.`)) return;
-    showToast(`Sending lock command to ${hostname}...`, "");
-    const r = await fetch(`/api/hosts/${uuid}/lock`, { method: "POST" });
+    showToast(`Locking ${hostname}...`, "");
+    const r = await fetch(`/api/hosts/${id}/lock`, { method: "POST" });
     const data = await r.json();
     if (data.error) { showToast(`Error: ${data.error}`, "error"); }
-    else { showToast(`Lock command sent to ${hostname}`, "success"); }
+    else { showToast(`${hostname} locked successfully`, "success"); }
   }
 
   function openScriptModal(id, hostname, platform) {

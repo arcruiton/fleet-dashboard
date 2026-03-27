@@ -41,31 +41,16 @@ app.get("/api/hosts/:id", async (req, res) => {
   }
 });
 
-// Lock device via MDM custom command
-app.post("/api/hosts/:uuid/lock", async (req, res) => {
+// Lock device via script (works on free tier)
+app.post("/api/hosts/:id/lock", async (req, res) => {
   try {
-    const uuid = req.params.uuid;
-    const commandUUID = randomUUID().toUpperCase();
-    const plist = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Command</key>
-  <dict>
-    <key>RequestType</key>
-    <string>DeviceLock</string>
-  </dict>
-  <key>CommandUUID</key>
-  <string>${commandUUID}</string>
-</dict>
-</plist>`;
+    const script_contents = `#!/bin/bash
+/System/Library/CoreServices/Menu\\ Extras/User.menu/Contents/Resources/CGSession -suspend`;
 
-    const encoded = Buffer.from(plist).toString("base64");
-
-    const r = await fetch(`${FLEET_URL}/api/v1/fleet/mdm/commands/run`, {
+    const r = await fetch(`${FLEET_URL}/api/v1/fleet/scripts/run/sync`, {
       method: "POST",
       headers: fleetHeaders(),
-      body: JSON.stringify({ command: encoded, device_ids: [uuid] }),
+      body: JSON.stringify({ host_id: parseInt(req.params.id), script_contents }),
     });
     const data = await r.json();
     res.json(data);
